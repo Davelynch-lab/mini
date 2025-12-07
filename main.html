@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Генератор Сигнатур Mini</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            background-color: #0f172a;
+            color: #e2e8f0;
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        
+        /* Glassmorphism */
+        .glass-card {
+            background: rgba(30, 41, 59, 0.8);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+        }
+
+        /* Sliders */
+        input[type=range] {
+            -webkit-appearance: none; 
+            background: transparent; 
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 14px;
+            width: 14px;
+            border-radius: 50%;
+            background: #facc15; /* Yellow thumb */
+            cursor: pointer;
+            margin-top: -5px;
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            background: #334155;
+            border-radius: 2px;
+        }
+
+        canvas {
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
+            border-radius: 12px;
+            /* Прозрачный паттерн для визуализации прозрачности фона */
+            background-image: linear-gradient(45deg, #1e293b 25%, transparent 25%), linear-gradient(-45deg, #1e293b 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #1e293b 75%), linear-gradient(-45deg, transparent 75%, #1e293b 75%);
+            background-size: 20px 20px;
+            background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+        }
+
+        .blob {
+            position: absolute;
+            filter: blur(50px);
+            z-index: -1;
+            opacity: 0.3;
+        }
+        
+        .color-chip:hover {
+            transform: translateY(-2px) scale(1.1);
+        }
+
+        /* Скрываем стандартный инпут цвета, чтобы вызывать его через наши красивые кнопки */
+        input[type="color"] {
+            opacity: 0;
+            position: absolute;
+            pointer-events: none;
+            width: 0;
+            height: 0;
+        }
+    </style>
+</head>
+<body class="antialiased pb-10">
+
+    <div class="blob bg-yellow-600 w-64 h-64 rounded-full top-10 left-10"></div>
+    <div class="blob bg-indigo-600 w-72 h-72 rounded-full bottom-20 right-10"></div>
+
+    <div class="container mx-auto p-4 max-w-5xl relative z-10">
+        
+        <header class="text-center mb-6 pt-4">
+            <h1 class="text-3xl md:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-yellow-200 via-orange-300 to-amber-200 tracking-tight mb-1">
+                Signatura<span class="font-light text-white">Dobra</span>
+            </h1>
+            <p class="text-slate-400 text-xs md:text-sm">Создание уникальных геометрических сигнатур</p>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            
+            <div class="lg:col-span-4 space-y-4">
+                
+                <div class="glass-card p-5 rounded-xl">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-lg font-bold text-white">Настройки</h2>
+                        <span id="modeDisplay" class="text-[10px] font-mono text-yellow-200 bg-yellow-900/40 px-2 py-0.5 rounded">Линии</span>
+                    </div>
+                    
+                    <div class="space-y-4">
+                        <select id="modeCombo" class="w-full bg-slate-800 border border-slate-600 text-white text-sm rounded-lg p-2.5 focus:border-yellow-500 outline-none">
+                            <option>Линии</option>
+                            <option>Точки</option>
+                            <option>Фигуры</option>
+                            <option>Смешанный</option>
+                            <option>Спираль</option>
+                        </select>
+
+                        <div class="space-y-1">
+                            <div class="flex justify-between text-xs text-slate-400">
+                                <span>Сложность</span> <span id="elementValue" class="text-yellow-500 font-mono">300</span>
+                            </div>
+                            <input type="range" id="elementSlider" min="50" max="600" value="300" class="w-full">
+                        </div>
+
+                        <div class="space-y-1">
+                            <div class="flex justify-between text-xs text-slate-400">
+                                <span>Лучи</span> <span id="slicesValue" class="text-yellow-500 font-mono">13</span>
+                            </div>
+                            <input type="range" id="slicesSlider" min="3" max="30" value="13" class="w-full">
+                        </div>
+
+                        <div class="space-y-1">
+                            <div class="flex justify-between text-xs text-slate-400">
+                                <span>Скорость</span> <span id="animationSpeedValue" class="text-yellow-500 font-mono">0.1</span>
+                            </div>
+                            <input type="range" id="animationSpeedSlider" min="0.05" max="0.5" step="0.01" value="0.1" class="w-full">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="glass-card p-5 rounded-xl">
+                    <h2 class="text-lg font-bold text-white mb-3">Цвета</h2>
+                    
+                    <input type="color" id="hiddenPalettePicker">
+                    <input type="color" id="hiddenBgPicker">
+
+                    <div id="paletteContainer" class="flex flex-wrap gap-2 min-h-[40px] mb-3"></div>
+
+                    <div class="grid grid-cols-2 gap-2">
+                        <button id="addColorBtn" class="bg-slate-700 hover:bg-slate-600 text-xs text-white py-2 rounded transition-colors">+ Цвет</button>
+                        <button id="changeBackgroundColorBtn" class="bg-slate-700 hover:bg-slate-600 text-xs text-white py-2 rounded transition-colors">🎨 Фон</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="lg:col-span-8 space-y-4">
+                <div class="glass-card p-4 rounded-xl flex flex-col items-center relative overflow-hidden">
+                    <div id="recordTimer" class="absolute top-4 right-4 z-20 font-mono text-red-500 font-bold opacity-0 transition-opacity text-sm bg-black/50 px-2 rounded">REC 00:00</div>
+                    
+                    <div class="w-full max-w-[500px] aspect-square relative flex items-center justify-center rounded-lg border border-slate-700/50 shadow-inner overflow-hidden">
+                         <canvas id="previewCanvas" class="max-w-full max-h-full object-contain"></canvas>
+                    </div>
+                </div>
+
+                <div class="glass-card p-4 rounded-xl">
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+                        <button id="generateBtn" class="col-span-2 md:col-span-1 bg-gradient-to-r from-yellow-600 to-orange-600 hover:from-yellow-500 hover:to-orange-500 text-white font-bold py-2.5 px-4 rounded-lg shadow-lg transform active:scale-95 transition-all text-sm">
+                            💫 Создать
+                        </button>
+                        
+                        <button id="animateBtn" class="bg-slate-700 hover:bg-slate-600 text-white font-medium py-2.5 px-4 rounded-lg transition-colors text-sm border border-slate-600">
+                            ▶ Анимация
+                        </button>
+                        
+                        <button id="recordBtn" class="bg-slate-700 hover:bg-slate-600 text-white font-medium py-2.5 px-4 rounded-lg transition-colors text-sm border border-slate-600 flex items-center justify-center gap-2 group">
+                            <span class="w-2 h-2 rounded-full bg-red-500 group-hover:animate-pulse"></span> REC
+                        </button>
+
+                        <button id="downloadVideoBtn" class="bg-slate-800 text-slate-500 py-2.5 px-4 rounded-lg border border-slate-700 cursor-not-allowed transition-colors text-sm" disabled>
+                            📥 Видео
+                        </button>
+
+                        <button id="viewBtn" class="col-span-1 bg-slate-700 hover:bg-slate-600 text-white py-2.5 px-4 rounded-lg transition-colors text-sm border border-slate-600">
+                           🔍 Full
+                        </button>
+
+                        <button id="saveBtn" class="col-span-1 bg-slate-700 hover:bg-slate-600 text-white py-2.5 px-4 rounded-lg transition-colors text-sm border border-slate-600">
+                           💾 PNG
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="imageModal" class="fixed inset-0 bg-black/95 backdrop-blur-xl hidden flex items-center justify-center z-50 transition-opacity duration-300 opacity-0">
+        <div class="relative w-full h-full flex flex-col items-center justify-center p-2">
+            <canvas id="fullCanvas" class="max-h-[80vh] max-w-[95vw] object-contain shadow-2xl rounded-lg border border-white/10"></canvas>
+            <button id="closeModalBtn" class="mt-4 bg-white/10 hover:bg-white/20 text-white px-6 py-2 rounded-full backdrop-blur-md transition-all text-sm border border-white/10">
+                Закрыть просмотр
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // CONFIG
+        const DPI = 2; 
+        const CANVAS_SIZE = 800; 
+        let ANIMATION_SPEED = 0.1;
+        let backgroundColor = [15, 23, 42, 1]; // Default Dark Blue
+
+        // WATERMARK CONFIG
+        const WATERMARK_TEXT = "signatura_dobra";
+        const WATERMARK_COLOR = "rgba(255, 255, 224, 0.15)"; 
+
+        // Default Palette
+        let palette = {
+            '1': [250, 204, 21, 1],   
+            '2': [249, 115, 22, 1],   
+            '3': [234, 179, 8, 1],    
+            '4': [255, 255, 255, 1]   
+        };
+
+        const AVAILABLE_COLORS = [
+            [255, 255, 224, 1], [255, 215, 0, 1], [255, 140, 0, 1], [240, 248, 255, 1]
+        ];
+
+        let colorIndex = 0;
+        let activeColorKey = null; // Keeps track of which color we are editing
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry/i.test(navigator.userAgent);
+
+        // --- HELPER: Convert HEX string to [r,g,b,a] ---
+        function hexToRgbaArray(hex) {
+            let c;
+            if(/^#([A-Fa-f0-9]{3}){1,2}$/.test(hex)){
+                c= hex.substring(1).split('');
+                if(c.length== 3){
+                    c= [c[0], c[0], c[1], c[1], c[2], c[2]];
+                }
+                c= '0x'+c.join('');
+                return [(c>>16)&255, (c>>8)&255, c&255, 1];
+            }
+            return [255, 255, 255, 1];
+        }
+
+        // --- HELPER: Convert RGB array to HEX string (for input value) ---
+        function rgbaToHex(rgba) {
+            const r = rgba[0].toString(16).padStart(2, '0');
+            const g = rgba[1].toString(16).padStart(2, '0');
+            const b = rgba[2].toString(16).padStart(2, '0');
+            return `#${r}${g}${b}`;
+        }
+
+        // --- HELPER: Load Colors from Page 1 ---
+        function loadPaletteFromStorage() {
+            const savedColors = localStorage.getItem('generatedColors');
+            if (savedColors) {
+                try {
+                    const parsed = JSON.parse(savedColors);
+                    if (Array.isArray(parsed) && parsed.length > 0) {
+                        palette = {}; // Clear default
+                        parsed.forEach((hexColor, index) => {
+                            if (hexColor) {
+                                palette[index] = hexToRgbaArray(hexColor);
+                            }
+                        });
+                    }
+                } catch (e) {
+                    console.error("Error loading colors:", e);
+                }
+            }
+        }
+
+        // --- CORE GENERATOR CLASS ---
+        class KaleidoGenerator {
+            constructor(size_px, palette, mode = 'Lines', sectors = 12, elements = 300) {
+                this.size = size_px;
+                this.palette = Object.values(palette);
+                this.mode = mode;
+                this.sectors = sectors;
+                this.elements = Math.min(elements, 500);
+                this.elementsData = [];
+                this.initElements();
+            }
+
+            initElements() {
+                this.elementsData = [];
+                const angle = 360 / this.sectors;
+                
+                for (let i = 0; i < this.elements; i++) {
+                    const base = {
+                        r: Math.random(),
+                        theta: (Math.random() * angle - angle / 2) * Math.PI / 180,
+                        colorIdx: Math.floor(Math.random() * this.palette.length),
+                        size: Math.random() * 10 + 2,
+                        r2: Math.random(),
+                        theta2: (Math.random() * angle - angle / 2) * Math.PI / 180,
+                        width: Math.random() * 3 + 1
+                    };
+                    
+                    if (this.mode === 'Spiral') {
+                        base.theta_start = (Math.random() * angle - angle / 2) * Math.PI / 180;
+                    }
+                    this.elementsData.push(base);
+                }
+            }
+
+            _makeKaleidoSquare(animate, animationTime) {
+                const canvas = document.createElement('canvas');
+                canvas.width = this.size;
+                canvas.height = this.size;
+                const ctx = canvas.getContext('2d');
+                const radius = this.size / 2;
+                const cx = radius, cy = radius;
+                const t = animate ? animationTime * ANIMATION_SPEED : 0;
+
+                this.elementsData.forEach((d, i) => {
+                    const color = this.palette[d.colorIdx] || [255,255,255,1];
+                    const nextColor = this.palette[(d.colorIdx + 1) % this.palette.length] || color;
+                    
+                    const factor = (Math.sin(t + i * 0.3) + 1) / 2;
+                    const r = Math.round(color[0] * (1-factor) + nextColor[0] * factor);
+                    const g = Math.round(color[1] * (1-factor) + nextColor[1] * factor);
+                    const b = Math.round(color[2] * (1-factor) + nextColor[2] * factor);
+                    const a = color[3];
+                    const style = `rgba(${r},${g},${b},${a})`;
+                    
+                    ctx.fillStyle = style;
+                    ctx.strokeStyle = style;
+                    ctx.lineWidth = d.width;
+
+                    const thetaOffset = Math.sin(t + i * 0.2) * 0.3;
+
+                    if (this.mode === 'Lines' || this.mode === 'Mixed' && i % 3 === 0) {
+                        ctx.beginPath();
+                        ctx.moveTo(cx + d.r * radius * Math.cos(d.theta + thetaOffset), cy + d.r * radius * Math.sin(d.theta + thetaOffset));
+                        ctx.lineTo(cx + d.r2 * radius * Math.cos(d.theta2 + thetaOffset), cy + d.r2 * radius * Math.sin(d.theta2 + thetaOffset));
+                        ctx.stroke();
+                    } else if (this.mode === 'Dots' || this.mode === 'Mixed' && i % 3 === 1) {
+                        ctx.beginPath();
+                        ctx.arc(cx + d.r * radius * Math.cos(d.theta + thetaOffset), cy + d.r * radius * Math.sin(d.theta + thetaOffset), d.size, 0, Math.PI*2);
+                        ctx.fill();
+                    } else if (this.mode === 'Shapes' || this.mode === 'Mixed') {
+                        const x = cx + d.r * radius * Math.cos(d.theta + thetaOffset);
+                        const y = cy + d.r * radius * Math.sin(d.theta + thetaOffset);
+                        ctx.fillRect(x - d.size, y - d.size, d.size*2, d.size*2);
+                    } else if (this.mode === 'Spiral') {
+                         for (let rad = 0; rad < radius; rad += 5) {
+                            const th = d.theta_start + rad * 0.05 + t * 0.5;
+                            ctx.beginPath();
+                            ctx.arc(cx + rad * Math.cos(th), cy + rad * Math.sin(th), Math.max(1, 3 + Math.sin(rad*0.1)*2), 0, Math.PI*2);
+                            ctx.fill();
+                         }
+                    }
+                });
+                return canvas;
+            }
+
+            _drawWatermark(ctx, width, height) {
+                ctx.save();
+                ctx.translate(width / 2, height / 2);
+                ctx.rotate(-Math.PI / 4); 
+                ctx.translate(-width / 2, -height / 2);
+
+                ctx.font = `600 ${width / 35}px 'Inter', sans-serif`; 
+                ctx.fillStyle = WATERMARK_COLOR;
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+
+                const stepX = width / 3; 
+                const stepY = height / 5;
+                
+                for (let x = -width; x < width * 2; x += stepX) {
+                    for (let y = -height; y < height * 2; y += stepY) {
+                        ctx.fillText(WATERMARK_TEXT, x, y);
+                    }
+                }
+                ctx.restore();
+            }
+
+            generate(canvas, animate = false, animationTime = 0) {
+                const ctx = canvas.getContext('2d');
+                canvas.width = this.size;
+                canvas.height = this.size;
+
+                // 1. Draw Background
+                ctx.fillStyle = `rgba(${backgroundColor[0]}, ${backgroundColor[1]}, ${backgroundColor[2]}, ${backgroundColor[3]})`;
+                ctx.fillRect(0, 0, this.size, this.size);
+
+                // 2. Generate Slice
+                const wedge = this._makeKaleidoSquare(animate, animationTime);
+
+                // 3. Draw Kaleidoscope Pattern
+                const radius = this.size / 2;
+                const angle = 360 / this.sectors;
+                const t = animate ? animationTime * ANIMATION_SPEED : 0;
+                const rotationOffset = Math.sin(t) * 0.2;
+
+                const patternCanvas = document.createElement('canvas');
+                patternCanvas.width = this.size;
+                patternCanvas.height = this.size;
+                const pCtx = patternCanvas.getContext('2d');
+
+                for (let i = 0; i < this.sectors; i++) {
+                    pCtx.save();
+                    pCtx.translate(radius, radius);
+                    pCtx.rotate((angle * i + rotationOffset) * Math.PI / 180);
+                    if (i % 2 === 1) pCtx.scale(-1, 1);
+                    pCtx.drawImage(wedge, -radius, -radius);
+                    pCtx.restore();
+                }
+
+                ctx.drawImage(patternCanvas, 0, 0);
+                this._drawWatermark(ctx, this.size, this.size);
+            }
+        }
+
+        // --- APP STATE ---
+        let generator = null;
+        let isAnimating = false;
+        let animationFrameId = null;
+        let startTime = null;
+        let mediaRecorder = null;
+        let recordedChunks = [];
+        let recordTimerId = null;
+        let recordStartTime = null;
+        let isRecording = false;
+
+        // --- UI FUNCTIONS ---
+        function updatePaletteUI() {
+            const container = document.getElementById('paletteContainer');
+            container.innerHTML = '';
+            Object.entries(palette).forEach(([key, color]) => {
+                const chip = document.createElement('div');
+                chip.className = 'color-chip relative w-8 h-8 rounded-full cursor-pointer border border-white/30 shadow-sm';
+                chip.style.backgroundColor = `rgba(${color[0]}, ${color[1]}, ${color[2]}, ${color[3]})`;
+                
+                // On Click: Open Native Color Picker
+                chip.onclick = () => {
+                    activeColorKey = key;
+                    const picker = document.getElementById('hiddenPalettePicker');
+                    // Set current color to picker
+                    picker.value = rgbaToHex(color);
+                    picker.click(); // Trigger open
+                };
+                
+                // Right click to delete
+                chip.oncontextmenu = (e) => {
+                    e.preventDefault();
+                    if(Object.keys(palette).length > 1) {
+                        delete palette[key];
+                        updatePaletteUI();
+                        generate();
+                    }
+                };
+                container.appendChild(chip);
+            });
+        }
+
+        // Change Background Color
+        function triggerBackgroundPicker() {
+            const picker = document.getElementById('hiddenBgPicker');
+            picker.value = rgbaToHex(backgroundColor);
+            picker.click();
+        }
+
+        function generate() {
+            stopAnimation();
+            const modeMap = {
+                'Линии': 'Lines', 'Точки': 'Dots', 'Фигуры': 'Shapes', 'Смешанный': 'Mixed',
+                'Спираль': 'Spiral'
+            };
+            const mode = modeMap[document.getElementById('modeCombo').value] || 'Lines';
+            document.getElementById('modeDisplay').textContent = document.getElementById('modeCombo').value;
+            
+            const elements = parseInt(document.getElementById('elementSlider').value);
+            const slices = parseInt(document.getElementById('slicesSlider').value);
+
+            generator = new KaleidoGenerator(CANVAS_SIZE, palette, mode, slices, elements);
+            const canvas = document.getElementById('previewCanvas');
+            canvas.style.width = '100%';
+            canvas.style.height = '100%';
+            generator.generate(canvas);
+        }
+
+        function animate() {
+            if (!generator) return;
+            const btn = document.getElementById('animateBtn');
+            
+            if (isAnimating) {
+                isAnimating = false;
+                cancelAnimationFrame(animationFrameId);
+                btn.textContent = "▶ Анимация";
+                btn.classList.remove('bg-red-600');
+                btn.classList.add('bg-slate-700');
+            } else {
+                isAnimating = true;
+                startTime = Date.now();
+                btn.textContent = "⏹ Стоп";
+                btn.classList.remove('bg-slate-700');
+                btn.classList.add('bg-red-600');
+                animateLoop();
+            }
+        }
+
+        function animateLoop() {
+            if (!isAnimating) return;
+            const canvas = document.getElementById('previewCanvas');
+            const time = (Date.now() - startTime) / 1000;
+            generator.generate(canvas, true, time);
+            animationFrameId = requestAnimationFrame(animateLoop);
+        }
+
+        function stopAnimation() {
+            if (isAnimating) animate(); 
+        }
+
+        // --- RECORDING ---
+        function toggleRecording() {
+            const btn = document.getElementById('recordBtn');
+            const timer = document.getElementById('recordTimer');
+            const downBtn = document.getElementById('downloadVideoBtn');
+
+            if (isRecording) {
+                if (mediaRecorder) mediaRecorder.stop();
+                isRecording = false;
+                clearInterval(recordTimerId);
+                btn.innerHTML = '<span class="w-2 h-2 rounded-full bg-red-500 group-hover:animate-pulse"></span> REC';
+                btn.classList.replace('bg-red-600', 'bg-slate-700');
+                timer.classList.add('opacity-0');
+                if(isAnimating) animate(); 
+            } else {
+                if (!isAnimating) animate(); 
+                recordedChunks = [];
+                const canvas = document.getElementById('previewCanvas');
+                const stream = canvas.captureStream(30);
+                
+                try {
+                    const mime = MediaRecorder.isTypeSupported('video/webm;codecs=vp9') ? 'video/webm;codecs=vp9' : 'video/webm';
+                    mediaRecorder = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 5000000 });
+                    mediaRecorder.ondataavailable = e => { if (e.data.size > 0) recordedChunks.push(e.data); };
+                    mediaRecorder.onstop = () => {
+                        downBtn.disabled = false;
+                        downBtn.classList.remove('cursor-not-allowed', 'bg-slate-800', 'text-slate-500');
+                        downBtn.classList.add('bg-green-600', 'text-white', 'hover:bg-green-500');
+                    };
+                    mediaRecorder.start();
+                    isRecording = true;
+                    recordStartTime = Date.now();
+                    
+                    btn.innerHTML = '⏹ Стоп';
+                    btn.classList.replace('bg-slate-700', 'bg-red-600');
+                    timer.classList.remove('opacity-0');
+                    
+                    recordTimerId = setInterval(() => {
+                        const s = Math.floor((Date.now() - recordStartTime)/1000);
+                        const m = Math.floor(s/60).toString().padStart(2,'0');
+                        const sc = (s%60).toString().padStart(2,'0');
+                        timer.textContent = `REC ${m}:${sc}`;
+                        if(s > 60) toggleRecording(); 
+                    }, 1000);
+                } catch (e) {
+                    alert("Ваш браузер не поддерживает запись Canvas.");
+                    isRecording = false;
+                }
+            }
+        }
+
+        // --- EXPORT ---
+        function downloadVideo() {
+            if (recordedChunks.length === 0) return;
+            const blob = new Blob(recordedChunks, { type: 'video/webm' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `signatura_${Date.now()}.webm`;
+            a.click();
+        }
+
+        function savePNG() {
+            const canvas = document.getElementById('previewCanvas');
+            const link = document.createElement('a');
+            link.download = `signatura_${Date.now()}.png`;
+            link.href = canvas.toDataURL();
+            link.click();
+        }
+
+        // --- FULL SCREEN ---
+        function openFull() {
+            const modal = document.getElementById('imageModal');
+            const fCanvas = document.getElementById('fullCanvas');
+            modal.classList.remove('hidden');
+            setTimeout(() => modal.classList.remove('opacity-0'), 10);
+            
+            const tempGen = new KaleidoGenerator(1200, palette, generator.mode, generator.sectors, generator.elements);
+            tempGen.elementsData = generator.elementsData; 
+            tempGen.generate(fCanvas);
+        }
+
+        // --- EVENT LISTENERS ---
+        document.getElementById('elementSlider').oninput = (e) => {
+            document.getElementById('elementValue').textContent = e.target.value;
+            generate();
+        };
+        document.getElementById('slicesSlider').oninput = (e) => {
+            document.getElementById('slicesValue').textContent = e.target.value;
+            generate();
+        };
+        document.getElementById('animationSpeedSlider').oninput = (e) => {
+            ANIMATION_SPEED = parseFloat(e.target.value);
+            document.getElementById('animationSpeedValue').textContent = e.target.value;
+        };
+        document.getElementById('modeCombo').onchange = generate;
+        
+        // Add Color Button
+        document.getElementById('addColorBtn').onclick = () => {
+            if(Object.keys(palette).length < 15) {
+                // Add a default color (Gold), user can then click to change
+                palette[Date.now()] = [255, 215, 0, 1];
+                updatePaletteUI();
+                generate();
+            }
+        };
+
+        // Linked background color changer
+        document.getElementById('changeBackgroundColorBtn').onclick = triggerBackgroundPicker;
+
+        // Hidden Inputs Listeners
+        document.getElementById('hiddenPalettePicker').oninput = (e) => {
+            if (activeColorKey !== null) {
+                palette[activeColorKey] = hexToRgbaArray(e.target.value);
+                updatePaletteUI();
+                generate();
+            }
+        };
+
+        document.getElementById('hiddenBgPicker').oninput = (e) => {
+            backgroundColor = hexToRgbaArray(e.target.value);
+            generate();
+        };
+
+        document.getElementById('generateBtn').onclick = generate;
+        document.getElementById('animateBtn').onclick = animate;
+        document.getElementById('recordBtn').onclick = toggleRecording;
+        document.getElementById('downloadVideoBtn').onclick = downloadVideo;
+        document.getElementById('saveBtn').onclick = savePNG;
+        document.getElementById('viewBtn').onclick = openFull;
+        document.getElementById('closeModalBtn').onclick = () => {
+             document.getElementById('imageModal').classList.add('opacity-0');
+             setTimeout(() => document.getElementById('imageModal').classList.add('hidden'), 300);
+        };
+
+        // --- INITIALIZATION ---
+        loadPaletteFromStorage();
+        updatePaletteUI();
+        setTimeout(generate, 100);
+
+    </script>
+</body>
+</html>
