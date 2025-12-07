@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Генератор Цветов</title>
+    <style>
+        body {
+            background: #f5f5f7;
+            color: #222;
+            font-family: Arial, sans-serif;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            background: #fff;
+            padding: 30px;
+            border-radius: 15px;
+            max-width: 600px;
+            width: 100%;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        input, button {
+            width: 100%;
+            padding: 12px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            margin: 10px 0;
+            box-sizing: border-box;
+        }
+
+        input {
+            background: #f0f0f0;
+            color: #000;
+        }
+
+        button {
+            background: #4a90e2;
+            color: white;
+            font-weight: bold;
+            transition: background 0.3s ease;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #357ABD;
+        }
+
+        .colors {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin: 20px 0;
+        }
+
+        .color-box {
+            width: 40px;
+            height: 40px;
+            margin: 5px;
+            border-radius: 6px;
+            border: 1px solid #aaa;
+        }
+
+        .error {
+            color: #e74c3c;
+            font-weight: bold;
+            margin: 5px 0;
+        }
+
+        #instruction-btn {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            width: 42px;
+            height: 42px;
+            background: #4a90e2;
+            color: white;
+            font-size: 20px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: none;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: background 0.3s ease;
+            z-index: 1001;
+        }
+
+        #instruction-btn:hover {
+            background: #357ABD;
+        }
+
+        #popupOverlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        #popupContent {
+            background: #fff;
+            color: #222;
+            border-radius: 10px;
+            padding: 20px;
+            max-width: 400px;
+            width: 100%;
+            text-align: left;
+            font-size: 15px;
+            line-height: 1.5;
+            position: relative;
+        }
+
+        #popupContent button {
+            background: #4a90e2;
+            color: white;
+            font-size: 14px;
+            margin-top: 15px;
+            width: 100%;
+        }
+
+        #continueBtn {
+            margin-top: 10px;
+        }
+
+        @media(max-width: 600px) {
+            .container {
+                padding: 20px;
+            }
+
+            .color-box {
+                width: 30px;
+                height: 30px;
+            }
+
+            #popupContent {
+                max-width: 90%;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Popup Modal -->
+<div id="popupOverlay">
+    <div id="popupContent">
+        <b>Инструкция:</b><br><br>
+        1. Введите или вставьте текст (от 90 до 700 символов, без пробелов и знаков препинания).<br>
+        2. Текст будет автоматически очищен от пробелов и знаков препинания.<br>
+        3. Опционально укажите символы, которые хотите удалить.<br>
+        4. Нажмите "Получить цвета".<br>
+        5. Скачайте Excel-файл с цветными ячейками или нажмите "Продолжить" для использования цветов в генераторе калейдоскопов.<br><br>
+        Каждая ячейка в файле будет окрашена в соответствующий цвет.<br><br>
+        <button onclick="togglePopup()">Понятно</button>
+    </div>
+</div>
+
+<!-- Instruction Button -->
+<button id="instruction-btn" onclick="togglePopup()">ℹ️</button>
+
+<div class="container">
+    <h2>Генератор Цветов по Тексту</h2>
+    <p id="char-counter">Наберите текст без пробелов и без знаков препинания, минимум 90 символов, максимум 700.</p>
+    <input type="text" id="textInput" maxlength="700" placeholder="Введите текст...">
+    <input type="text" id="removeCharsInput" placeholder="Символы для удаления (опционально)">
+    <div id="errorMessage" class="error"></div>
+    <button onclick="processText()">Получить цвета</button>
+    <div class="colors" id="colorsContainer"></div>
+    <button id="downloadBtn" style="display:none;" onclick="downloadExcel()">Скачать Excel</button>
+    <button id="continueBtn" style="display:none;" onclick="goToMain()">Продолжить</button>
+</div>
+
+<script>
+    const colorMapping = {
+        "А": "#ff99ff", "а": "#ff99ff", "Б": "#3366ff", "б": "#3366ff", "В": "#6600ff", "в": "#6600ff", 
+        "Г": "#00cc66", "г": "#00cc66", "Д": "#9966ff", "д": "#9966ff", "Е": "#ffffcc", "е": "#ffffcc",
+        "Ё": "#ffcc99", "ё": "#ffcc99", "Ж": "#ffff66", "ж": "#ffff66", "З": "#ccff66", "з": "#ccff66",
+        "И": "#00cc66", "и": "#00cc66", "Й": "#009999", "й": "#009999", "К": "#66ffff", "к": "#66ffff",
+        "Л": "#99ccff", "л": "#99ccff", "М": "#cc00ff", "м": "#cc00ff", "Н": "#9966ff", "н": "#9966ff",
+        "О": "#ffccff", "о": "#ffccff", "П": "#33cccc", "п": "#33cccc", "Р": "#ff33cc", "р": "#ff33cc",
+        "С": "#b2b2b2", "с": "#b2b2b2", "Т": "#33ccff", "т": "#33ccff", "У": "#ff7c80", "у": "#ff7c80",
+        "Ф": "#339933", "ф": "#339933", "Х": "#dddddd", "х": "#dddddd", "Ц": "#006699", "ц": "#006699",
+        "Ч": "#9900ff", "ч": "#9900ff", "Ш": "#0066cc", "ш": "#0066cc", "Щ": "#336699", "щ": "#336699",
+        "Ъ": "#777777", "ъ": "#777777", "Ь": "#666699", "ь": "#666699", "Э": "#990099", "э": "#990099",
+        "Ю": "#ccccff", "ю": "#ccccff", "Я": "#ccccff", "я": "#ccccff", "0": "#00cc66", "1": "#00ccff",
+        "2": "#ff9966", "3": "#00cc99", "4": "#cccc00", "5": "#ffff00", "6": "#6666ff", "7": "#00ffcc",
+        "8": "#ffcc66", "9": "#ff0066"
+    };
+
+    let currentColors = [];
+
+    function togglePopup() {
+        const popup = document.getElementById('popupOverlay');
+        popup.style.display = popup.style.display === 'flex' ? 'none' : 'flex';
+    }
+
+    document.getElementById('textInput').addEventListener('input', function() {
+        let text = this.value.replace(/[^a-zA-Zа-яА-Я0-9]/g, '');
+        text = text.slice(0, 700);
+        this.value = text;
+        const count = text.length;
+        document.getElementById('char-counter').innerText =
+            `Осталось ${700 - count} символов. Минимум 90, максимум 700.`;
+    });
+
+    function processText() {
+        const textInput = document.getElementById('textInput').value;
+        const removeChars = document.getElementById('removeCharsInput').value;
+        const errorDiv = document.getElementById('errorMessage');
+        errorDiv.innerText = '';
+
+        if (textInput.length < 90) {
+            errorDiv.innerText = 'Минимальное количество символов — 90.';
+            return;
+        }
+        if (textInput.length > 700) {
+            errorDiv.innerText = 'Максимальное количество символов — 700.';
+            return;
+        }
+
+        let text = textInput.replace(/[^a-zA-Zа-яА-Я0-9]/g, '');
+        for (let char of removeChars) {
+            text = text.split(char).join('');
+        }
+        text = text.toLowerCase();
+
+        const counter = {};
+        for (let c of text) {
+            counter[c] = (counter[c] || 0) + 1;
+        }
+
+        const sorted = Object.entries(counter)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 8)
+            .map(item => item[0]);
+
+        currentColors = sorted
+            .map(char => colorMapping[char] || null)
+            .filter(Boolean);
+
+        displayColors();
+    }
+
+    function displayColors() {
+        const container = document.getElementById('colorsContainer');
+        container.innerHTML = '';
+
+        if (currentColors.length === 0) {
+            container.innerText = 'Нет доступных цветов.';
+            document.getElementById('downloadBtn').style.display = 'none';
+            document.getElementById('continueBtn').style.display = 'none';
+            return;
+        }
+
+        for (let color of currentColors) {
+            const box = document.createElement('div');
+            box.className = 'color-box';
+            box.style.backgroundColor = color;
+            container.appendChild(box);
+        }
+
+        document.getElementById('downloadBtn').style.display = 'block';
+        document.getElementById('continueBtn').style.display = 'block';
+    }
+
+    function downloadExcel() {
+        let tableHTML = '<table border="1" style="border-collapse:collapse;"><tr>';
+        currentColors.forEach(color => {
+            tableHTML += `<td style="background-color:${color};width:50px;height:50px;"></td>`;
+        });
+        tableHTML += '</tr></table>';
+
+        const blob = new Blob([tableHTML], {type: 'application/vnd.ms-excel'});
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = 'colors.xls';
+        link.click();
+    }
+
+    function goToMain() {
+        console.log('Saving colors to localStorage:', currentColors); // Отладка
+        localStorage.setItem('generatedColors', JSON.stringify(currentColors));
+        window.location.href = 'main.html';
+    }
+</script>
+</body>
+</html>
